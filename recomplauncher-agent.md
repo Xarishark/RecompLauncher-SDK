@@ -7,10 +7,11 @@ For an AI coding agent working in a recomp's repository. Read all of it before c
 ## What to do
 
 1. **Learn the project.** How it finds the game's files, what it needs from the player's copy (a disc image, a ROM, extracted files), how it starts, where it keeps settings, saves and logs, and how releases are built.
-2. **Write `recomplauncher.json`** with every level that fits (the guide below explains each one):
-   - Level 1, Easy Setup (`game` and `start`): the player picks their copy, the launcher checks it, sets it up and starts the game.
-   - Level 2, settings in the launcher (`config` and `settings`): the project's settings file or command-line options, shown in the launcher.
-   - Level 3, full setup (`prepare` and `game.dumps`): a windowless setup step with progress lines, and the known good copies of the game.
+2. **Write `recomplauncher.json`** with every part that fits (the guide below explains each one):
+   - Launch, Easy Setup (`game` and `start`): the player picks their copy, the launcher checks it, sets it up and starts the game.
+   - Settings in the launcher (`config` and `settings`): the project's settings file or command-line options, shown in the launcher.
+   - Preparation (`prepare`), only when the game has work to do once before Play: a windowless setup step with progress lines. A game that reads the player's copy as it runs doesn't need one.
+   - Verification (`game.dumps`): the known good copies of the game.
    - A vendor's SDK (NVIDIA DLSS, AMD FSR 4 and the like): if the project can use one but doesn't ship it, because it isn't open source or its license forbids that, see **Vendor SDKs the build needs** in the guide below. A build that needs the SDK at build time gets a `prepare.options` tick.
 3. **Ship it in every release.** Put `recomplauncher.json` at the top of each release zip, next to the executable, and inside the AppImage at `/recomplauncher.json` if there is one. Update the release workflow or packaging script so it's always included.
 4. **Check the project against the Recomp Standards** (the section of that name in the guide below). Fix the ones that are small and safe, most of all accepting the standard file formats for its console (CHD for disc-based consoles, decrypted dumps for PS3, PS4, PS5 and Vita, a `--keys <path>` option where the player's own keys are needed, and so on). Leave the bigger ones for the report in step 7.
@@ -24,7 +25,7 @@ For an AI coding agent working in a recomp's repository. Read all of it before c
 ## Rules
 
 - **Never add game files**: no ROMs, disc images, extracted assets or keys.
-- **Code changes are opt-in.** Small source changes are welcome where Level 1 or 3 needs them (a `--game <path>` option, a windowless `--prepare` mode that prints `progress 0.4 Text` lines) or to accept more file formats. Without the new arguments, the game must start and behave exactly as before, with its own installer or picker.
+- **Code changes are opt-in.** Small source changes are welcome where Launch or Preparation needs them (a `--game <path>` option, a windowless `--prepare` mode that prints `progress 0.4 Text` lines) or to accept more file formats. Without the new arguments, the game must start and behave exactly as before, with its own installer or picker.
 - **Reuse what's there.** Don't rewrite the project's installer, file checks or settings code.
 - **Keep the project's style**, keep the diff small, and put code changes in their own commit, separate from `recomplauncher.json` and the packaging changes.
 - **Don't change gameplay, graphics, saves or config formats.**
@@ -36,7 +37,7 @@ For an AI coding agent working in a recomp's repository. Read all of it before c
 
 End with a message to the developer, in this shape:
 
-> **What I added**: the levels in `recomplauncher.json`, the code changes, the packaging changes and the badge, in a few lines.
+> **What I added**: the parts in `recomplauncher.json`, the code changes, the packaging changes and the badge, in a few lines.
 >
 > **What I checked, and how**: the schema check, the build, the start without new arguments, and where the `dumps` values came from.
 >
@@ -52,6 +53,10 @@ End with a message to the developer, in this shape:
 
 # The RecompLauncher SDK guide
 
+For multiple discs, DLC slots and explicitly conditional shared keys, see
+[Named Easy Setup inputs](https://github.com/elripalda/RecompLauncher-SDK/blob/main/docs/setup-inputs.md). That extension is limited to game inputs and three
+shared key types. BIOS/firmware management and multidisc hashing are explicitly deferred.
+
 RecompLauncher can set your recomp up for the player. They drop in their disc image, watch it get
 checked and set up, change your video settings on the game's page, and press Play. They never
 open a config file or your own launcher.
@@ -60,16 +65,26 @@ All of it comes from one file you write, `recomplauncher.json`. Your recomp does
 change: the launcher only does what a player would do by hand. It edits your settings file,
 passes command-line arguments and starts your executable.
 
-There are three levels. Each one builds on the last, and you can stop at any of them.
+It has four parts. Add the ones your game needs: a game that reads the player's disc while it
+runs is completely set up without a `prepare` step.
 
-| Level | What players get | What you add |
+| Part | What players get | What you add |
 | --- | --- | --- |
-| 1. Plays from RecompLauncher | Drop in a disc, it's checked and set up, Play starts the game directly | `game` and `start` |
-| 2. Settings in the launcher | Your video and gameplay settings on the game's page and in Big Picture mode | `config` and `settings` |
-| 3. Full setup | Your own setup step on the setup screen, and a "verified" badge for clean dumps | `prepare` and `dumps` |
+| Launch | Drop in a disc, it's checked and set up, Play starts the game directly | `game` and `start` |
+| Settings | Your video and gameplay settings on the game's page and in Big Picture mode | `config` and `settings` |
+| Preparation | Your own setup step that runs once before Play | `prepare` |
+| Verification | A "verified" badge when the player's copy matches a known dump | `dumps` |
 
-Level 1 takes about ten minutes. Before any of them, your releases need to install cleanly, which
-most already do: see **Releases that install cleanly**.
+The rule: use `start` to pass inputs the game reads when it starts. Add `prepare` only when your
+game has separate work to do before Play, like importing assets or recompiling from the player's
+dump. Verification works with either.
+
+Game pages show who maintains a game's setup: its developer, RecompLauncher or the community.
+Where the file comes from doesn't decide it. If you ship and maintain your own
+`recomplauncher.json`, tell us and your game shows as maintained by its developer.
+
+Launch takes about ten minutes. Before any of them, your releases need to install cleanly, which
+most already do: see [Releases that install cleanly](#releases-that-install-cleanly).
 
 ## Releases that install cleanly
 
@@ -94,29 +109,93 @@ through us, and every release you publish reaches players the next time the laun
 - **`recomplauncher.json` at the top of the zip**, next to your program.
 - **Pre-releases are betas.** Mark a test build as a pre-release on GitHub. Normal players stay on
   your latest full release, and we can open the pre-release as a beta in the launcher, where
-  players join it with one button and go back just as easily. See **Betas**.
+  players join it with one button and go back just as easily. See [Betas](#betas).
 
 ## Where the file goes
 
 The launcher uses the first one it finds:
 
-1. **Your release.** Put `recomplauncher.json` at the top of your release zip, next to your
-   executable. This is the best place, because it ships with every release.
-2. **The catalog.** If you can't ship it, send it to us and we'll add it to your entry on
+1. **Inside your AppImage.** Put `recomplauncher.json` at the AppDir root before packaging a
+   type-2 AppImage. It belongs to that exact build and takes precedence over an adjacent file.
+2. **Your release folder.** Put `recomplauncher.json` at the top of your release zip, next to your
+   executable. It also provides a fallback for AppImages without valid embedded metadata.
+3. **The catalog.** If you can't ship it, send it to us and we'll add it to your entry on
    recomplauncher.com.
+4. **Your repo, on a Forgejo or Gitea server.** For a project hosted there, the launcher also reads
+   `recomplauncher.json` from the top of the repo's default branch
+   (`https://{server}/api/v1/repos/{owner}/{name}/raw/recomplauncher.json`) when neither of the
+   above has one. For example, `git.example.dev/studio/game` with the file next to its README.
+
+### AppImages
+
+The launcher reads `/recomplauncher.json` directly from the AppImage's SquashFS payload.
+It does not execute or mount the image to inspect it, and writes no extracted JSON sidecar.
+Settings, save and folder paths still start from the installation directory (`{install}`),
+not from the internal filesystem.
+
+The Flatpak build of the launcher unpacks your AppImage at install and starts its `AppRun`. See
+[Your recomp in the RecompLauncher Flatpak](https://github.com/elripalda/RecompLauncher/blob/main/docs/FLATPAK.md) for that and the sandbox's other
+differences.
+
+Use the AppImage's filename in `start.program`, for example:
+
+```json
+"start": {
+  "program": ["MyGame-x86_64.AppImage"],
+  "args": ["{game}"]
+}
+```
+
+Program entries ending in `.AppImage` in `start` and `prepare` are rebound to the actual
+installed filename, so renaming the download does not break launch. An internal path such
+as `usr/bin/game` cannot be started by the launcher outside the image.
+
+Embedded lookup applies when the install folder contains exactly one regular `.AppImage`
+file at its top level (case-insensitive extension). With multiple AppImages it does not
+guess: the adjacent profile and catalog fallback continue to work. The manifest must be
+a regular file no larger than 1 MiB, with `format: 1`. Gzip, XZ, Zstandard and LZ4 SquashFS
+compression are supported. Missing, malformed or unsupported metadata falls back to the
+adjacent manifest and then the catalog. Replacing the image is reflected on the next read;
+there is no extracted copy to become stale.
+
+Developer tools identify the embedded source and check the profile actually in use.
+
+The same file uploaded twice, once without the version for `releases/latest/download` links
+(`Game-1.2.0-x86_64.AppImage` and `Game-x86_64.AppImage`), is one build: the launcher installs
+the one that names its version and doesn't ask the player to choose. GitHub's SHA-256 of each file
+says they're the same.
+
+### Mac apps
+
+Put your `.app` at the top of a zip, with `recomplauncher.json` beside it, and say the system in
+the name (`MyGame-1.2.0-macos-arm64.zip`) so it's picked over a disk image. Links inside the app,
+like a framework's `Versions/Current`, are kept. Name the app in `start.program` and
+`prepare.program`; the launcher runs the program its `Info.plist` names:
+
+```json
+"start": { "program": ["MyGame.app", "MyGame-x86_64.AppImage"] },
+"prepare": { "program": ["MyGame.app", "MyGame-x86_64.AppImage"], "args": ["--prepare", "--game", "{game}"] }
+```
+
+The first entry that exists on the player's system runs, so one file covers a Mac and Linux.
+RecompLauncher 0.90 Beta 54 and older find an app in `start.program` and `prepare.program` only by
+its program's own path, which works everywhere: `"MyGame.app/Contents/MacOS/MyGame"`.
+
+If your app updates itself (Sparkle, say), leave that off when `RECOMPLAUNCHER` is set: the
+launcher installs each of your releases over the app, and two updaters on one app fight.
 
 Two examples are worth reading:
 
-- [fifawc14.json](https://recomplauncher.com/sdk-files/examples/fifawc14.json): 2014 FIFA World Cup (Xbox 360), with a settings file
+- `fifawc14.json` (in Worked examples below): 2014 FIFA World Cup (Xbox 360), with a settings file
   and eight settings
-- [streetball.json](https://recomplauncher.com/sdk-files/examples/streetball.json): NBA Street Vol. 2 (PS2), with settings passed on
+- `streetball.json` (in Worked examples below): NBA Street Vol. 2 (PS2), with settings passed on
   the command line
 
 Add `"$schema": "https://recomplauncher.com/schema/recomplauncher.json"` at the top and your
 editor will complete fields and flag mistakes as you type. The schema is also in this folder:
-[recomplauncher.json schema](https://recomplauncher.com/schema/recomplauncher.json).
+[the JSON schema](https://recomplauncher.com/schema/recomplauncher.json).
 
-## Level 1: plays from RecompLauncher
+## Launch: plays from RecompLauncher
 
 ```json
 {
@@ -151,12 +230,52 @@ What the player sees:
 - `check`: how to tell it's the right game. Use whichever fits:
   - `file`: a file that should be in the folder, like `"default.xex"`.
   - `xdvdfs`: a file on an Xbox 360 disc image.
-  - `iso9660`: a file in the top folder of a PlayStation 2 (or any ISO 9660) disc image.
+  - `iso9660`: a file in the top folder of a PlayStation 2 (or any ISO 9660) disc image. Raw CD
+    sectors (a PlayStation `.bin`) work too, and a `.cue`, `.gdi` or `.m3u` is checked through
+    its data tracks.
+  - `nup_build_id`: the build ID of a Nintendo Switch or Switch 2 `.nup` package, e.g. `"e0f3ccfa"` (hex,
+    at least 8 digits; a prefix of the full 64-digit ID is fine). It is read from the `exefs/main`
+    of the package's newest title, from the table rows leading to it and the first 96 bytes of that
+    file only, never the whole package, and a folder with `exefs/main` is read the same way. The
+    file is recognised by its contents, not its extension. This is a content check only: it needs
+    and adds no keys, and nothing is copied. A wrong build is refused with the build it found. Use
+    it with `kind: "iso_or_folder"`.
 
 The same check is how the launcher finds copies in the player's folders, so a disc image named
 `backup-07.iso` is still found.
 
+**CD games kept as several files.** The launcher finds a `.cue` (with its `.bin` tracks), a `.gdi`
+or an `.m3u` as one copy. If your game reads that sheet, name it in `label`, and `{game}` is the
+sheet. Otherwise `{game}` is the disc's first data track, the `.bin`, so a game that reads single
+disc images still gets one:
+
+```json
+"game": {
+  "kind": "iso",
+  "label": "Your dump of the USA release (SLUS-00797): pick the .cue file, with its .bin tracks beside it.",
+  "check": { "iso9660": "SLUS_007.97" }
+}
+```
+
 Leave `game` out if your recomp finds the game itself.
+
+**A second pick: the game's update.** When the game needs something beside the player's copy,
+picked on its own (a title update, or a PS4 update folder kept apart from the game), add `update`
+to `game`. The launcher asks for it after the copy and puts it in your folder:
+
+```json
+"game": {
+  "kind": "folder",
+  "label": "Your game folder (CUSA00341).",
+  "check": { "file": "eboot.bin" },
+  "update": { "into": "update", "label": "Your 1.02 update folder.", "accepts": "folder", "optional": true }
+}
+```
+
+- `into`: the folder inside your release it goes in.
+- `label`: what to ask for.
+- `accepts`: `"file"` (the default), `"folder"` or `"file or folder"`.
+- `optional`: the game plays without it, so the player can skip it.
 
 ### `start`
 
@@ -192,7 +311,7 @@ These fill in anywhere a path, an argument or a value is written:
 | | |
 | --- | --- |
 | `{install}` | Your game's folder |
-| `{game}` | The player's copy (the .iso or the folder) |
+| `{game}` | The player's copy (the .iso or the folder; for a .cue, its .bin unless `label` names .cue) |
 | `{documents}` | Documents |
 | `{local}` | AppData\Local, or ~/.local/share |
 | `{config}` | AppData\Roaming, or ~/.config |
@@ -223,7 +342,54 @@ Without it, the launcher watches which files the game writes while it runs, and 
 That works for most games, but saying where is better. Only list saves and small settings: game
 files, programs and archives are never copied, and nothing over 64 MB.
 
-## Level 2: settings in the launcher
+You can move them in a later release. Keep the same number of entries in the same order, and change
+the path in place: a copy made from the old place goes into the new one when the player restores it,
+or when the launcher brings back their cloud save because the new place is empty. From
+`"saves": ["{home}/Games/MyGame/user"]` to this, a copy from before restores into the new folder:
+
+```json
+"saves": ["{install}/Game/user"]
+```
+
+This only follows places your file or the catalog names, not ones the launcher noticed on its own.
+
+### `games`: several games in one release
+
+A release that carries a whole series lists its games. Players see each one as a game of its own:
+in Discover, search and Home, with its own page (a "Part of" pill leads to the release's page) and
+its own tile in the Library and Big Picture, with its own play time, achievements, pins and
+shortcuts. Installing, updating and removing stay one thing for the whole release.
+
+```json
+"games": [
+  { "id": "gow2", "name": "Gears of War 2", "args": ["--game=gow2"], "title_id": "4D53082D", "inputs": ["disc2"] },
+  { "id": "gow3", "name": "Gears of War 3", "args": ["--game=gow3"], "title_id": "4D530906", "inputs": ["disc3"] }
+]
+```
+
+- `id`: 1 to 16 of `a-z` and `0-9`, unique in your release. The game's full id is
+  `<recomp id>--<id>`, used for its achievements, play time and links
+  (`recomplauncher://game/<recomp id>--<id>`).
+- `name`: shown on its tile.
+- `args`: added after `start.args` when this game is played. Without them Play opens your own
+  menu, and the tile says to pick the game there. They can carry this game's files with
+  `{input:id}`, as `start.args` can; an argument whose file isn't chosen is left out:
+
+  ```json
+  { "id": "blue", "name": "Pokémon Blue", "args": ["--game=blue", "--rom={input:rom-blue}"], "inputs": ["rom-blue"] }
+  ```
+- `title_id` (Xbox 360): this game's title id. Only its own unlock file, `<title_id>.toml`, is read.
+- `inputs`: the ids of the setup inputs this game needs. Inputs no game lists are shared by all.
+  Easy Setup for a game asks only for its own and the shared ones.
+- `saves`: where this game keeps its own saves, like the top-level `saves`. Without it, the
+  release's saves are shared by its games.
+
+With one game or none, the release shows as one game, as before. When your release has no list,
+the one on recomplauncher.com is used. Before anyone installs your release, the launcher only has
+that list to go on: ask for your games to be listed there (with their art), or the release shows
+as one game until it's installed. Launchers older than 0.90 Beta 36 skip it and show one tile.
+
+## Settings: in the launcher
 
 ### `config`: your settings files
 
@@ -266,6 +432,67 @@ Each setting is a row with a list of choices. On a controller, left and right mo
   a good first choice, labelled "Game's option" or similar.
 - **Settings that only apply sometimes.** `when` greys a setting out unless the keys it lists
   match. FIFA's Window size has `"when": { "fullscreen": "false" }`.
+
+**Groups.** Give settings a `group` and a small heading shows where the group changes. Settings
+keep the order you list them in.
+
+```json
+{ "id": "invert", "label": "Invert Camera", "group": "Controls", "choices": [ ... ] }
+```
+
+**Advanced options.** `"advanced": true` hides a setting until the player presses Show Advanced
+Options, at the bottom of the list (the launcher remembers it per game). To hide a whole group,
+list it next to `settings`. Hidden settings keep their values and are still written.
+
+```json
+"groups": [ { "id": "Advanced", "advanced": true } ]
+```
+
+**Sliders.** For a number, use `slider` instead of `choices`. Its `key` is read and written like
+`set` keys (`Section/Key` works too), and `format` says how the number is written (printf style,
+`"%g"` when you leave it out). A value off the step, like 1.37 set in the game's own menu, shows
+as it is and stays until the player moves the slider. Left and right move one step.
+
+```json
+{
+  "id": "sens", "label": "Mouse Sensitivity", "group": "Controls",
+  "slider": { "key": "mouse_sensitivity", "min": 0.1, "max": 5, "step": 0.05, "format": "%.2f" },
+  "defaults": { "mouse_sensitivity": "1.0" }
+}
+```
+
+On the command line, use `"in": "args"` with `args` and `{value}` where the number goes:
+`"args": ["--sens", "{value}"]`. It's passed once the player has moved the slider.
+
+**Key bindings.** For controls kept one action per line (`key.cross=Space`), use `bindings`. Each
+action's `key` is read and written like `set` keys. The game page lists the actions with their
+keys as chips: the player presses a chip (or + for another key, up to `max`, 2 by default) and
+then the key, mouse button or wheel. Several keys on one action are joined with `separator`.
+Only actions the player changes are written, and Reset to Default puts back your `defaults`.
+
+```json
+{
+  "id": "keys", "label": "Keyboard & Mouse", "group": "Controls",
+  "bindings": {
+    "separator": "|", "max": 2,
+    "actions": [
+      { "label": "Cross", "key": "key.cross" },
+      { "label": "Options", "key": "key.options" }
+    ]
+  },
+  "defaults": { "key.cross": "Space", "key.options": "Escape|Return" }
+}
+```
+
+Keys are written as letters, digits, F1 to F12, Space, Return, Escape, Tab, Backspace, Shift,
+Ctrl, Alt, Up, Down, Left, Right, Mouse Left, Mouse Right, Mouse Middle, Mouse 4, Mouse 5, Wheel
+Up and Wheel Down. When your file already uses another name for one of them (Enter for Return),
+that one is kept. To choose your own, add `"names": { "Return": "Enter" }`. `"pad": true` on an
+action lets it take a controller button too (A, B, X, Y or Cross, Circle, Square, Triangle, LB,
+RB, LT, RT, Start, Back, the sticks and the D-pad).
+
+When the game closes, the launcher reads its settings again, so changes made in the game's own
+menu show on its page. A value that isn't one of a setting's choices shows as it is.
 
 Keep labels short and help text to a sentence. Say what it does for the player, not what the
 key is called.
@@ -361,13 +588,14 @@ the launcher. For the rest, the player gets a link to the mod's page.
 - `actions`: buttons under the settings. `open` opens one of your folders. `clear` empties one,
   written as a folder name and a subfolder (`"saves/cache"`). The launcher asks first.
 - `exit_codes`: when your game exits with one of these, the player sees your message instead of
-  a crash report.
+  a crash report. `"ok"` instead of a message: that's how your game closes when it's quit
+  normally, so it isn't shown as a crash.
 
 ```json
-"exit_codes": { "252968961": "It couldn't find your copy of the game. Pick it again on the game's page." }
+"exit_codes": { "252968961": "It couldn't find your copy of the game. Pick it again on the game's page.", "1": "ok" }
 ```
 
-## Level 3: full setup
+## Preparation and verification
 
 ### `prepare`: your own setup step
 
@@ -391,55 +619,94 @@ settings are written. It runs again whenever the player changes their copy.
   text after it shows under the step.
 - Exit with 0 when it worked. Anything else shows as a failed setup, with your exit code.
 - Write what you make to the same place your launcher would, so both stay in step.
+- `"version"` (optional): change it only when players who already set up must run the step again,
+  like when your output format changes. Nothing else in this file makes them set up again. Their
+  next Play opens Easy Setup with a note that the game is built again, whether it's set up from
+  named `inputs` or from a single `game` copy. A build the player pointed the launcher at
+  themselves ("Use a Build You Already Have") isn't asked.
+- To build into the player's install folder instead of their home folder, pass it to your builder
+  (`"args": ["--cli", "--prepare", "--game", "{game}", "--out", "{install}/YourGame"]`) and start
+  from the same place (`"start": {"args": ["--play", "{install}/YourGame"]}`, and `folders.game`).
+  When that folder is gone, Play builds the game again, as it does for a folder under `{home}`.
+- `"done"` (optional): the files the step leaves when it has finished, like
+  `["{home}/Games/YourGame/prepared.bin"]`. When they're all there, the game counts as set up, even
+  when your own launcher built it, and plays without asking for the copy (unless `start` uses
+  `{game}`). If one goes missing, the player is asked to set up again.
 
-#### `prepare.options`: ticks before the step runs
+**A second file from the player.** When your step needs more than the copy, like an official patch
+or an update, ask for it as a named input and pass it with `{input:<id>}`, next to `{game}`. The
+setup screen asks for both. Don't download it in the step: players bring their own files.
 
-Some builds can add things the player has to agree to first, like a library your builder downloads
-from NVIDIA or AMD under that company's license. List them in `options`, and each one shows as a
-tick on the setup screen, under Options, before your step runs. When it's ticked, its `args` go
-after the step's own. (RecompLauncher 0.90 Beta 46 and newer. Older launchers ignore `options`
-and run the step without them.)
+```json
+"inputs": [
+  { "id": "patch", "label": "The official 2.0 patch (patch20.zip)", "role": "update",
+    "formats": [{ "type": "file", "extensions": ["zip"] }] }
+],
+"prepare": { "program": ["yourgame.exe"], "args": ["--prepare", "--game", "{game}", "--patch", "{input:patch}"] }
+```
+
+[Named Easy Setup inputs](https://github.com/elripalda/RecompLauncher-SDK/blob/main/docs/setup-inputs.md) has the rest: several discs, optional DLC, and `{input:<id>}` in
+`start.args` and `start.env` too.
+
+#### `prepare.options`: ticks for a vendor's SDK
+
+Some builds need a vendor's SDK at build time, like NVIDIA's DLSS SDK: it's not open source, you
+can't ship it, and the shared `nvidia.dlss` input (a file the game loads) isn't enough because the
+renderer is compiled with it. Give `prepare` an option. The setup screen shows it as a tick, and
+when it's on its `args` are added after the step's own:
 
 ```json
 "prepare": {
-  "program": ["Longshot.AppImage", "LongshotBuilder.exe"],
+  "program": ["LongshotBuilder.exe"],
   "args": ["--cli", "--prepare", "--game", "{game}"],
-  "label": "Building the game from your copy (15 to 30 minutes)",
-  "timeout": 7200,
   "options": [
     {
       "id": "dlss",
-      "label": "NVIDIA DLSS",
-      "note": "Sharper, faster picture on NVIDIA RTX cards.",
-      "args": ["--fetch-ngx-sdk", "--accept-nvidia-license"],
+      "label": "NVIDIA DLSS and frame generation",
+      "note": "Downloads NVIDIA's DLSS SDK during the build.",
       "gpu": "nvidia",
-      "license": { "name": "NVIDIA DLSS SDK license", "url": "https://github.com/NVIDIA/DLSS/blob/9981c6350dc58c0ce21f024fd65e31e851c31689/LICENSE.txt" }
-    },
-    {
-      "id": "fsr4",
-      "label": "AMD FSR 4",
-      "note": "For AMD Radeon RX 9000 cards.",
-      "args": ["--fsr", "--fetch-fsr-runtime", "--accept-amd-license"],
-      "gpu": "amd",
-      "os": ["windows"],
-      "license": { "name": "AMD FidelityFX SDK license", "url": "https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/7539ae8b6568ad29ed78a753404351daf3b5cca7/Kits/FidelityFX/docs/license.md" }
+      "os": ["windows", "linux"],
+      "args": ["--fetch-ngx-sdk", "--accept-nvidia-license"],
+      "license": { "name": "NVIDIA RTX SDKs license", "url": "https://github.com/NVIDIA/DLSS/blob/main/LICENSE.txt" }
     }
   ]
 }
 ```
 
-- `id`: a-z, 0-9 and `_`, different for each option. `label` and `note` are what the player reads.
-- `os` (optional): only shown on these systems (`windows`, `linux`, `macos`).
-- `gpu` (optional): only shown with that brand of graphics card. `nvidia` means an RTX card,
-  `amd` any AMD card.
-- `default` (optional): whether it starts ticked. Without it, an option starts ticked.
-- `license`: **anything your step downloads under a company's license must have one.** The tick
-  then reads "NVIDIA DLSS (I accept the NVIDIA DLSS SDK license)", with the name as a link to
-  `url`, and it always starts off: the player accepts it by ticking it themselves.
-- The launcher keeps each player's ticks for your game and shows them again when they set it up
-  again, so someone who skipped an option can add it later without reinstalling.
-- Options that don't apply to the player's PC aren't shown. With none left, there's no Options
-  section at all.
+- `id` (a-z, 0-9, `_`), `label` and `args` are required. `note` is a line under the label.
+- `os` (`windows`, `linux`, `macos`) and `gpu` (`nvidia`, meaning an RTX card, or `amd`) decide who
+  sees it. Leave them out to show it everywhere.
+- With a `license` (a `name` and an `https` `url`) the tick starts off, and ticking it is the
+  player accepting it. Your args are what pass that on, like `--accept-nvidia-license`: never accept
+  for the player yourself. Without one it starts on, or as `default` says.
+- `"required": true` is for something the build can't run without. The setup screen's buttons
+  stay off, with a line saying why, until it's ticked, and the launcher refuses to start the step
+  without it. Only the PCs it's shown on count: an option `os` or `gpu` hides is never required
+  there. With a `license` it still starts off: only the player accepts it. Launchers older than
+  0.90.0-beta.64 don't know `required` and show a plain tick, so keep your builder's own check
+  (exit with a code and say why) until your `min` is that version:
+
+  ```json
+  "options": [
+    {
+      "id": "vs_build_tools",
+      "label": "Microsoft Visual Studio Build Tools",
+      "note": "Needed to build the game on your PC: installed if this PC doesn't have them.",
+      "os": ["windows"],
+      "required": true,
+      "args": ["--accept-vs-license"],
+      "license": { "name": "Microsoft Visual Studio license terms", "url": "https://visualstudio.microsoft.com/license-terms/" }
+    }
+  ]
+  ```
+- Your builder gets only these args. The launcher sets no environment variables for it, so keep
+  the SDK in your builder's own folder and put runtime files where the game looks.
+- Print `progress` lines for the download too. If it fails, exit with a code other than 0: the
+  player sees "Its setup step stopped with code N", so put the reason in your own log.
+- An option you add in a later release reaches players who already set the game up: Set Up
+  Again, beside Play, gets a New mark, and the next time they press Play they're asked once to turn
+  it on (the setup runs again with the copy they set up with) or play as it is. Their answer is
+  kept, so make the step cheap to run again: reuse what the last run made.
 
 #### Vendor SDKs the build needs
 
@@ -524,6 +791,45 @@ Things that make a recomp feel finished in the launcher. None are required; each
 - **Ship a `recomplauncher.json` in every release**, and keep it in step with your settings when
   you add or rename keys. The Developer tab (below) shows the problems before players do.
 
+## Launcher features
+
+A profile can list the launcher features it uses in `"requires"`, and the oldest launcher it works
+with in `"min"` (like `"0.90.0-beta.27"`). A launcher that doesn't have one of them leaves out the
+parts that need it (no Easy Setup, no settings tab for it), and the game still installs and plays the
+normal way. It never fails on a profile it doesn't fully understand.
+
+RecompLauncher 0.90 Beta 27 supports:
+
+| Feature | What it is |
+| --- | --- |
+| `start` | The program to start |
+| `start.linux` | A separate program on Linux |
+| `start.macos` | A separate program on a Mac |
+| `setup` | A program in the release that runs once before the first play |
+| `console` | The program asks questions in its text window |
+| `clone` | The game's setup works from a clone of its repo |
+| `makes` | Files or folders its setup makes, to tell when it finished |
+| `player_note` | Something the player does by hand, shown on the game's page |
+| `installer` | The release is an installer, then the game starts from what it installed |
+| `needs` | What the PC needs for its setup: `build_tools`, `clang`, `python` (3.10 or newer), checked on the game's page |
+| `exit_codes` | What a game's exit codes mean (`{"70": "…"}`, or `"ok"` for a normal quit), shown in the crash window |
+| `files.folder` | Easy Setup: the player's copy goes into a folder |
+| `files.flag` | Easy Setup: the copy is passed on the command line |
+| `files.env` | Easy Setup: the copy reaches the game through an environment variable |
+| `files.setup` | Easy Setup: the copy is handed to the game's own setup |
+| `files.accepts` | Which kinds of copy it takes (a disc image, a folder, a file) |
+| `files.contains` | Files the copy must have, to check it's the right game |
+| `files.sha256` | Known dumps, checked by their SHA-256 |
+| `files.update` | A title update the game needs beside the disc |
+| `settings.toml` | Game settings in a TOML file |
+| `settings.ini` | Game settings in an INI file |
+| `settings.json` | Game settings in a JSON file |
+| `settings.args` | Game settings on the command line |
+| `settings.choices` | Settings with a list of choices |
+| `settings.slider` | Settings as a slider |
+| `settings.bindings` | Key and button bindings |
+| `settings.groups` | Settings in named groups |
+
 ## Betas
 
 Publish a test build as a GitHub pre-release. Players on your normal release never get it by
@@ -532,13 +838,6 @@ pre-release, tell us and we open it as a beta. It can be open to everyone, by re
 invite. Players join from the launcher or their account page, play it, and go back to your normal
 release with one button. You can also name one release by its tag instead of "the newest
 pre-release".
-
-## Achievements
-
-Recomp Achievements is RecompLauncher's achievement system: achievements pop up as players earn them, games can be Beaten and Mastered, and Ranked points go on the leaderboards. It's separate from `recomplauncher.json`: a small C library in your recomp reports unlocks to the launcher, using the game's own achievements (Xbox 360), rules on console memory, or events you fire from your code.
-
-Everything you need is in the [Recomp Achievements repository](https://github.com/elripalda/RecompAchievements). Xbox 360 recomps on a recent ReXGlue build may already work without any change.
-
 ## Recomp Standards
 
 What makes a recomp easy to play, wherever players get it from. Nothing here is required to be listed on RecompLauncher. These are the things players trip over most, and most of them are small changes.
@@ -603,7 +902,7 @@ CHD is the format most disc-based backups come in, and the one players ask for m
 ## Get listed
 
 Recomps on recomplauncher.com are in the launcher. If yours isn't there yet, [submit it](https://recomplauncher.com/submit?platform=pc)
-with its GitHub repo, and say which levels it supports. A free [developer account](https://recomplauncher.com/developers?signup=1)
+with its GitHub repo, and say which parts it supports. A free [developer account](https://recomplauncher.com/developers?signup=1)
 gets it reviewed faster. Already listed and adding `recomplauncher.json`? Nothing to do: the next
 release you publish carries it.
 
@@ -617,7 +916,8 @@ The launcher has tools for this. In Settings, open Developers and turn on Develo
 2. **Read the check.** The build opens on its Developer tab. It reads your file fresh each time
    and lists what it found: where Play starts, what the setup screen asks for, each settings file
    and the choice each setting shows right now. Problems are marked in red, things worth a look in
-   yellow. JSON mistakes show the line and column. It also shows which level your file reaches.
+   yellow. JSON mistakes show the line and column. It also sums up how the game is set up
+   (launches with the player's copy, or needs a one-time step) and what it can do.
    No file yet? "Make a starter file" writes one next to your program to begin from.
 3. **Try it like a player.** Set it up with your own disc, change a setting, then open your
    settings file: only the keys you listed should have changed. Press Play: your game should start
@@ -630,6 +930,12 @@ If you'd rather check a release the way players get it, install it from Discover
 page. A file the launcher can't read is skipped, and the built-in one (if any) is used instead.
 
 Stuck, or want us to write the file with you? Open an issue, or send us your file.
+
+## Achievements
+
+Recomp Achievements is RecompLauncher's achievement system: achievements pop up as players earn them, whole games can be Mastered, and Ranked points go on the leaderboards. It's separate from `recomplauncher.json`: a small C library in your recomp reports unlocks to the launcher, using the game's own achievements (Xbox 360), rules on console memory, or events you fire from your code.
+
+Everything you need is in the [Recomp Achievements repository](https://github.com/elripalda/RecompAchievements). Xbox 360 recomps on a recent ReXGlue build may already work without any change.
 
 ---
 
@@ -889,6 +1195,184 @@ Also at https://recomplauncher.com/schema/recomplauncher.json. Add `"$schema": "
     "format"
   ],
   "properties": {
+    "inputs": {
+      "type": "array",
+      "maxItems": 32,
+      "description": "Named game/disc/DLC inputs, explicit shared-key requirements and NVIDIA DLSS (a file the launcher downloads from NVIDIA). See SETUP-INPUTS.md. No multidisc hashing, BIOS, firmware, font or system-library support.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "enum": [
+              "game",
+              "disc",
+              "dlc",
+              "update",
+              "key",
+              "runtime"
+            ],
+            "default": "game",
+            "description": "runtime: a file the launcher fetches itself (only with shared nvidia.dlss)."
+          },
+          "optional": {
+            "type": "boolean",
+            "default": false
+          },
+          "shared": {
+            "enum": [
+              "switch.prod-keys",
+              "switch.title-keys",
+              "wiiu.common-key",
+              "nvidia.dlss"
+            ],
+            "description": "Shared across games, kept once by the launcher. nvidia.dlss is downloaded from NVIDIA on Windows and Linux PCs with an NVIDIA RTX card (first in RecompLauncher 0.90 Beta 37); launchers from then on skip optional inputs with a shared type or role they don't know."
+          },
+          "destination": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*(?:\\\\|:|[{}]))(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//).+[^/]$",
+            "description": "Optional installation-relative file path. No folders, absolute paths, parent components or placeholders."
+          },
+          "formats": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "type"
+              ],
+              "properties": {
+                "type": {
+                  "enum": [
+                    "file",
+                    "folder"
+                  ]
+                },
+                "extensions": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9]+$"
+                  }
+                },
+                "requires": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{1,64}$"
+                  },
+                  "description": "IDs of required shared-key inputs in this manifest, activated only for this selected format."
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "shared"
+              ],
+              "properties": {
+                "shared": {
+                  "const": "nvidia.dlss"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "role"
+              ],
+              "properties": {
+                "role": {
+                  "const": "runtime"
+                }
+              },
+              "not": {
+                "required": [
+                  "formats"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "shared"
+              ],
+              "properties": {
+                "shared": {
+                  "enum": [
+                    "switch.prod-keys",
+                    "switch.title-keys",
+                    "wiiu.common-key"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "role"
+              ],
+              "properties": {
+                "role": {
+                  "const": "key"
+                },
+                "optional": {
+                  "const": false
+                }
+              },
+              "not": {
+                "required": [
+                  "formats"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "not": {
+                "required": [
+                  "shared"
+                ]
+              }
+            },
+            "then": {
+              "required": [
+                "formats"
+              ],
+              "properties": {
+                "formats": {
+                  "minItems": 1
+                },
+                "role": {
+                  "enum": [
+                    "game",
+                    "disc",
+                    "dlc",
+                    "update"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "additionalProperties": false
+      }
+    },
     "$schema": {
       "type": "string"
     },
@@ -918,7 +1402,7 @@ Also at https://recomplauncher.com/schema/recomplauncher.json. Add `"$schema": "
         },
         "label": {
           "type": "string",
-          "description": "What to ask for. Name the region or serial if only one works."
+          "description": "What to ask for. Name the region or serial if only one works. Name .cue, .gdi or .m3u if your game reads that sheet; otherwise a copy kept as one is given as its first data track (.bin)."
         },
         "check": {
           "type": "object",
@@ -934,7 +1418,20 @@ Also at https://recomplauncher.com/schema/recomplauncher.json. Add `"$schema": "
             },
             "iso9660": {
               "type": "string",
-              "description": "A file in the top folder of a PS2 (or any ISO 9660) disc image."
+              "description": "A file in the top folder of a PS2 (or any ISO 9660) disc image, in 2048-byte or raw 2352-byte sectors. A .cue, .gdi or .m3u is checked through its data tracks."
+            },
+            "nup_build_id": {
+              "type": "string",
+              "pattern": "^[0-9A-Fa-f]{8,64}$",
+              "description": "The build ID of a Nintendo Switch or Switch 2 .nup package (hex, 8 to 64 digits; a prefix such as the first 8 is fine), read from the exefs/main of its newest title. A folder with exefs/main is checked the same way. Judged by the file's content, never its name. Needs no keys."
+            },
+            "ids": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9._-]{3,16}$"
+              },
+              "description": "The disc or cartridge IDs it reads, as on the copy: a GameCube or Wii disc's (GZ2E01, or GZ2 for every region), an N64 cartridge's game code, a PlayStation disc's serial. Another game's copy is refused, and the player's copies are recognised by it."
             }
           },
           "additionalProperties": false
@@ -964,6 +1461,48 @@ Also at https://recomplauncher.com/schema/recomplauncher.json. Add `"$schema": "
             },
             "additionalProperties": false
           }
+        },
+        "update": {
+          "type": "object",
+          "description": "A second thing the game needs beside the player's copy, picked on its own (a title update, or a PS4 update folder kept apart from the game). The launcher puts it in the game's folder and keeps it across updates.",
+          "required": [
+            "into",
+            "label"
+          ],
+          "properties": {
+            "into": {
+              "type": "string",
+              "description": "The folder inside your release it goes in, like game/Content or update."
+            },
+            "label": {
+              "type": "string",
+              "description": "What to ask for, like 'Your title update (TU 1.03)'."
+            },
+            "accepts": {
+              "enum": [
+                "file",
+                "folder",
+                "file or folder"
+              ],
+              "default": "file",
+              "description": "Whether the player picks a file, a folder, or either."
+            },
+            "optional": {
+              "type": "boolean",
+              "default": false,
+              "description": "The game plays without it; the player can skip it."
+            },
+            "name": {
+              "type": "string",
+              "description": "The name it must have there (it's put in under this name)."
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{64}$",
+              "description": "The one known file: checked when it's picked."
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -1015,6 +1554,92 @@ Also at https://recomplauncher.com/schema/recomplauncher.json. Add `"$schema": "
           "minimum": 1,
           "default": 300,
           "description": "Seconds."
+        },
+        "done": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Files the step leaves when it has finished ({home}, {local}, {install}...). All there: the game counts as set up and plays without the copy unless start uses {game}."
+        },
+        "version": {
+          "type": "string",
+          "description": "Change it only when players who already set up must run this step again (its output format changed, say). Nothing else in this file asks them to."
+        },
+        "options": {
+          "type": "array",
+          "description": "Ticks shown on the setup screen before the step runs. Each one adds its args when it's on. For a vendor's SDK your builder downloads, like NVIDIA's DLSS SDK: the player accepts its license by ticking it.",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label",
+              "args"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9_]+$",
+                "description": "Unique among the options. a-z, 0-9 and _."
+              },
+              "label": {
+                "type": "string",
+                "description": "What the player reads next to the tick."
+              },
+              "note": {
+                "type": "string",
+                "description": "One line under the label."
+              },
+              "args": {
+                "$ref": "#/definitions/args"
+              },
+              "os": {
+                "type": "array",
+                "description": "Shown only on these systems. Every system when left out.",
+                "items": {
+                  "enum": [
+                    "windows",
+                    "linux",
+                    "macos"
+                  ]
+                }
+              },
+              "gpu": {
+                "enum": [
+                  "nvidia",
+                  "amd"
+                ],
+                "description": "Shown only with this brand of graphics card: nvidia means an RTX card, as DLSS needs."
+              },
+              "license": {
+                "type": "object",
+                "description": "What the player accepts by ticking it. With one, the tick starts off.",
+                "required": [
+                  "name",
+                  "url"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string",
+                    "pattern": "^https://",
+                    "description": "Where the player can read it."
+                  }
+                },
+                "additionalProperties": false
+              },
+              "default": {
+                "type": "boolean",
+                "description": "Whether it starts ticked (on when left out). Ignored with a license."
+              },
+              "required": {
+                "type": "boolean",
+                "default": false,
+                "description": "Setup can't start until it's ticked, on the PCs it's shown on (os and gpu still decide that). For terms the build can't run without, like a compiler's license: with a license it still starts off, and the player accepts it by ticking it. Launchers older than 0.90.0-beta.64 ignore it, so keep your builder's own check too until your min is that version."
+              }
+            },
+            "additionalProperties": false
+          }
         }
       },
       "additionalProperties": false
@@ -1071,7 +1696,7 @@ Also at https://recomplauncher.com/schema/recomplauncher.json. Add `"$schema": "
     },
     "exit_codes": {
       "type": "object",
-      "description": "Exit code (as a string) to the message shown to the player.",
+      "description": "Exit code (as a string) to the message shown to the player. \"ok\" instead of a message: the game closes with that code when it's quit normally, so it isn't shown as a crash.",
       "additionalProperties": {
         "type": "string"
       }
@@ -1082,8 +1707,7 @@ Also at https://recomplauncher.com/schema/recomplauncher.json. Add `"$schema": "
         "type": "object",
         "required": [
           "id",
-          "label",
-          "choices"
+          "label"
         ],
         "properties": {
           "id": {
@@ -1129,6 +1753,142 @@ Also at https://recomplauncher.com/schema/recomplauncher.json. Add `"$schema": "
           "when": {
             "$ref": "#/definitions/values",
             "description": "Greyed out unless these keys have these values."
+          },
+          "group": {
+            "type": "string",
+            "description": "A heading it's shown under, like \"Controls\". Settings keep their order; a heading shows where the group changes."
+          },
+          "advanced": {
+            "type": "boolean",
+            "default": false,
+            "description": "Hidden until the player presses Show Advanced Options. Its value stays, and it's still written."
+          },
+          "slider": {
+            "type": "object",
+            "description": "A number on a slider instead of choices. The value is read from \"key\" like \"set\" keys (Section/Key), and written with \"format\". A value off the step (set in the game's own menu) is shown as it is and left alone until the player moves the slider.",
+            "required": [
+              "min",
+              "max"
+            ],
+            "properties": {
+              "key": {
+                "type": "string",
+                "description": "The key it sets in the settings file (Section/Key for INI sections and TOML tables). Not needed with \"in\": \"args\"."
+              },
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              },
+              "step": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "How far one move goes. A hundredth of the range when it isn't said."
+              },
+              "format": {
+                "type": "string",
+                "default": "%g",
+                "description": "How the number is written, printf style: \"%.2f\", \"%d\", \"%g\"."
+              },
+              "args": {
+                "$ref": "#/definitions/args",
+                "description": "With \"in\": \"args\": the arguments, with {value} for the number. The same as the setting's own \"args\"."
+              }
+            },
+            "additionalProperties": false
+          },
+          "args": {
+            "$ref": "#/definitions/args",
+            "description": "For a slider with \"in\": \"args\": its arguments, with {value} for the number, like [\"--sens\", \"{value}\"]. Passed only once the player has moved it."
+          },
+          "bindings": {
+            "type": "object",
+            "description": "Key bindings instead of choices: the game's actions, each with the keys it's on in the settings file. The game page shows each action with its keys as chips; the player presses a chip and then the new key, mouse button or wheel. Only actions the player changes are written.",
+            "required": [
+              "actions"
+            ],
+            "properties": {
+              "separator": {
+                "type": "string",
+                "description": "Joins several keys on one action, in the order the player set them. Default \"|\"."
+              },
+              "max": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 8,
+                "description": "Keys one action can have. Default 2."
+              },
+              "actions": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "label",
+                    "key"
+                  ],
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "key": {
+                      "type": "string",
+                      "description": "Where it's written, with the same rules as \"set\": Section/Key for INI or TOML, nested/keys for JSON."
+                    },
+                    "pad": {
+                      "type": "boolean",
+                      "description": "It takes a controller button too."
+                    }
+                  }
+                }
+              },
+              "names": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "The launcher's name for a key or button, to the name your file uses for it, like {\"Return\": \"Enter\"}. Without one, a name the file already uses for that key is kept."
+              }
+            }
+          }
+        },
+        "additionalProperties": false,
+        "anyOf": [
+          {
+            "required": [
+              "choices"
+            ]
+          },
+          {
+            "required": [
+              "slider"
+            ]
+          },
+          {
+            "required": [
+              "bindings"
+            ]
+          }
+        ]
+      }
+    },
+    "groups": {
+      "type": "array",
+      "description": "Groups used in settings' \"group\". A group marked advanced is hidden as a whole until the player shows advanced options.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The name the settings use in \"group\"."
+          },
+          "advanced": {
+            "type": "boolean",
+            "default": false
           }
         },
         "additionalProperties": false
@@ -1144,6 +1904,84 @@ Also at https://recomplauncher.com/schema/recomplauncher.json. Add `"$schema": "
         [
           "{local}/My Game/saves",
           "{install}/settings.toml"
+        ]
+      ]
+    },
+    "games": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 32,
+      "description": "Several games in one release (a whole series). Each gets its own tile, play time, achievements and shortcuts; the install, updates and removal stay one. One game or none: the recomp shows as one game. A list in the catalog entry is used when the release has none; this one wins.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]{1,16}$",
+            "description": "Unique within the recomp. The game's full id is <recomp id>--<id>."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Shown on its tile."
+          },
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Added after start.args when this game is played. {input:id} is filled with this game's file; an argument whose file isn't chosen is left out. None: Play opens your own menu, and the tile says to pick the game there."
+          },
+          "title_id": {
+            "type": "string",
+            "pattern": "^[0-9A-Fa-f]{8}$",
+            "description": "Xbox 360: this game's title id. Its unlock file is <title_id>.toml."
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The setup inputs this game needs. Inputs no game lists are shared by all."
+          },
+          "saves": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Where this game keeps its own saves, like the top-level saves. None: the recomp's saves are shared."
+          }
+        }
+      },
+      "examples": [
+        [
+          {
+            "id": "gow2",
+            "name": "Gears of War 2",
+            "args": [
+              "--game=gow2"
+            ],
+            "title_id": "4D53082D",
+            "inputs": [
+              "disc2"
+            ]
+          },
+          {
+            "id": "gow3",
+            "name": "Gears of War 3",
+            "args": [
+              "--game=gow3"
+            ],
+            "title_id": "4D530906",
+            "inputs": [
+              "disc3"
+            ]
+          }
         ]
       ]
     },
@@ -1250,6 +2088,19 @@ Also at https://recomplauncher.com/schema/recomplauncher.json. Add `"$schema": "
         },
         "additionalProperties": false
       }
+    },
+    "requires": {
+      "description": "The launcher features this profile uses. Parts needing a feature the player's launcher doesn't have are left out (no Easy Setup, no settings tab for it); the game still installs and plays.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/launcherFeature"
+      },
+      "uniqueItems": true
+    },
+    "min": {
+      "description": "The oldest launcher version this profile's Easy Setup, settings and installer parts work with, like \"0.90.0-beta.27\". Older launchers leave those parts out.",
+      "type": "string",
+      "pattern": "^v?\\d+\\.\\d+\\.\\d+(-[A-Za-z]+\\.\\d+)?$"
     }
   },
   "additionalProperties": false,
@@ -1260,7 +2111,7 @@ Also at https://recomplauncher.com/schema/recomplauncher.json. Add `"$schema": "
       "items": {
         "type": "string"
       },
-      "description": "Paths inside your release, tried in order."
+      "description": "Paths inside your release, tried in order. An .AppImage entry finds the AppImage installed under any name; on a Mac a .app runs the program its Info.plist names (Beta 55 and newer; before that, name the program inside it, like MyGame.app/Contents/MacOS/MyGame)."
     },
     "args": {
       "type": "array",
@@ -1294,6 +2145,38 @@ Also at https://recomplauncher.com/schema/recomplauncher.json. Add `"$schema": "
         },
         "additionalProperties": false
       }
+    },
+    "launcherFeature": {
+      "description": "A launcher feature a profile can say it uses (\"requires\"). A launcher that doesn't have one leaves out the parts that need it, and the game installs and plays the normal way. RecompLauncher 0.90 Beta 27 supports these.",
+      "enum": [
+        "start",
+        "start.linux",
+        "start.macos",
+        "setup",
+        "console",
+        "clone",
+        "makes",
+        "player_note",
+        "installer",
+        "needs",
+        "exit_codes",
+        "files.folder",
+        "files.flag",
+        "files.env",
+        "files.setup",
+        "files.accepts",
+        "files.contains",
+        "files.sha256",
+        "files.update",
+        "settings.toml",
+        "settings.ini",
+        "settings.json",
+        "settings.args",
+        "settings.choices",
+        "settings.slider",
+        "settings.bindings",
+        "settings.groups"
+      ]
     }
   }
 }

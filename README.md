@@ -4,18 +4,20 @@
 
 | | What players get | What you add |
 | --- | --- | --- |
-| **Level 1: Plays from RecompLauncher** | Drop in a disc, it's checked and set up, Play starts the game. Shows as Easy Setup. | `game` and `start` in `recomplauncher.json` |
-| **Level 2: Settings in the launcher** | Your video and gameplay settings on the game's page and in Big Picture mode | `config` and `settings` |
-| **Level 3: Full setup** | Your own setup step, and a verified badge for clean dumps | `prepare` and `dumps` |
+| **Launch** | Drop in a disc, it's checked and set up, Play starts the game. Shows as Easy Setup. | `game` and `start` in `recomplauncher.json` |
+| **Settings** | Your video and gameplay settings on the game's page and in Big Picture mode | `config` and `settings` |
+| **Preparation** | Your own setup step that runs once before Play | `prepare` |
+| **Verification** | A verified badge when the player's copy matches a known dump | `dumps` |
 | **Recomp Achievements** | Achievements as they play, Mastered games, leaderboards | The [Recomp Achievements](https://github.com/elripalda/RecompAchievements) library |
 
-Levels 1 to 3 all come from one file, `recomplauncher.json`, in your release or your repository. Level 1 takes about ten minutes.
+The first four all come from one file, `recomplauncher.json`, in your release or your repository. Add the ones your game needs: Launch takes about ten minutes.
 
 ## What's here
 
 - **[recomplauncher-agent.md](recomplauncher-agent.md)**: the whole SDK in one file, for your AI coding agent. Drop it in your project and ask it to follow it: it adds RecompLauncher support, fixes the easy Recomp Standards items, adds the badge, and ends with a report of what else would make your recomp better. Always current at https://recomplauncher.com/sdk-files/recomplauncher-agent.md
 
 - [docs/guide.md](docs/guide.md): the full guide, the same one as [recomplauncher.com/sdk](https://recomplauncher.com/sdk)
+- [docs/setup-inputs.md](docs/setup-inputs.md): named Easy Setup inputs, for several discs, DLC and the player's keys
 - [schema/recomplauncher.json](schema/recomplauncher.json): the JSON schema. Add `"$schema": "https://recomplauncher.com/schema/recomplauncher.json"` to your file and most editors will check it as you type.
 - [docs/standards.md](docs/standards.md): Recomp Standards, what makes a recomp easy to play: the file formats to accept (CHD, RVZ, NSP and more), releases, portable mode, settings and logs
 - [examples/](examples): two complete files, an Xbox 360 recomp with a settings file and a PS2 recomp with settings passed on the command line
