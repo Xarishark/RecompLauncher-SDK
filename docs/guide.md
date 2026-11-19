@@ -283,9 +283,10 @@ PC. List folders, single files, or files matching a `*` pattern:
 "saves": ["{local}/My Game/saves", "{install}/settings.toml"]
 ```
 
-Without it, the launcher watches which files the game writes while it runs, and uses those places.
-That works for most games, but saying where is better. Only list saves and small settings: game
-files, programs and archives are never copied, and nothing over 64 MB.
+Without it (and without a catalog entry that says), the launcher doesn't guess: the game's Saves tab
+says it doesn't know where the game saves, and nothing is backed up or synced until the player picks
+the folder. So say where. Only list saves and small settings: game files, programs and archives are
+never copied, and nothing over 64 MB.
 
 You can move them in a later release. Keep the same number of entries in the same order, and change
 the path in place: a copy made from the old place goes into the new one when the player restores it,
@@ -576,7 +577,11 @@ settings are written. It runs again whenever the player changes their copy.
 - `"done"` (optional): the files the step leaves when it has finished, like
   `["{home}/Games/YourGame/prepared.bin"]`. When they're all there, the game counts as set up, even
   when your own launcher built it, and plays without asking for the copy (unless `start` uses
-  `{game}`). If one goes missing, the player is asked to set up again.
+  `{game}`). If one goes missing, the player is asked to set up again. It's also what a finished
+  build has: when a player points the launcher at a build of their own, the files of `done` in
+  your build folder must be in theirs, so list one your
+  build always leaves, like `["{install}/YourGame/game.pak"]`. Without `done`, any folder with files
+  in it is taken.
 
 **A second file from the player.** When your step needs more than the copy, like an official patch
 or an update, ask for it as a named input and pass it with `{input:<id>}`, next to `{game}`. The
@@ -783,6 +788,7 @@ pre-release, tell us and we open it as a beta. It can be open to everyone, by re
 invite. Players join from the launcher or their account page, play it, and go back to your normal
 release with one button. You can also name one release by its tag instead of "the newest
 pre-release".
+
 ## Recomp Standards
 
 What makes a recomp easy to play, wherever players get it from. Nothing here is required to be listed on RecompLauncher. These are the things players trip over most, and most of them are small changes.
