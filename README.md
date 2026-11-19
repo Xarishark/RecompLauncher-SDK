@@ -20,7 +20,7 @@ The first four all come from one file, `recomplauncher.json`, in your release or
 - [docs/setup-inputs.md](docs/setup-inputs.md): named Easy Setup inputs, for several discs, DLC and the player's keys
 - [schema/recomplauncher.json](schema/recomplauncher.json): the JSON schema. Add `"$schema": "https://recomplauncher.com/schema/recomplauncher.json"` to your file and most editors will check it as you type.
 - [docs/standards.md](docs/standards.md): Recomp Standards, what makes a recomp easy to play: the file formats to accept (CHD, RVZ, NSP and more), releases, portable mode, settings and logs
-- [examples/](examples): two complete files, an Xbox 360 recomp with a settings file and a PS2 recomp with settings passed on the command line
+- [examples/](examples): three complete files, an Xbox 360 recomp with a settings file, a PS2 recomp with settings passed on the command line, and a four-disc game with optional DLC (named Easy Setup inputs)
 
 ## Get listed
 
