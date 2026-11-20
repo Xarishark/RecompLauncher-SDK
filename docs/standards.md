@@ -39,13 +39,13 @@ CHD is the format most disc-based backups come in, and the one players ask for m
 ## Releases
 
 - **Tag every release with a version** (`v1.2.0`) and attach the builds to the GitHub release, not just to the README or Actions.
-- **One file per platform, with a name that says what it is**, the same way every time: `yourgame-1.2.0-windows-x64.zip`, `-linux-x86_64.AppImage`, `-macos-arm64.zip`.
+- **Name every file for what it is**, the same way every time: `yourgame-1.2.0-windows-x64.zip`, `-linux-x86_64.tar.gz` and `-linux-x86_64.AppImage`, `-macos-arm64.zip`. [Releases that install cleanly](guide.md#releases-that-install-cleanly) has the rest: the words a launcher picks a file by, one portable Linux build packed both ways, `source` in a source archive's name, and staying out of Program Files.
 - **Build for Linux and Mac too** when you can. A lot of players are on Steam Deck.
 - **Say what changed** in the release notes, even in one line.
 
 ## On the player's PC
 
-- **Portable when it can be.** If the folder next to the exe is writable, keep saves, settings and logs there. Otherwise use the usual per-user folder, and say where in the README.
+- **One data folder, and a way to move it.** Take one option for where everything goes (saves, settings, caches, logs), like portable emulators do. Without it, use the system's usual per-user folder, and say where in the README. A launcher can then keep all of it with the game: RecompLauncher passes `{data}` (`RECOMPLAUNCHER_DATA`), see [Where your game writes](guide.md#where-your-game-writes).
 - **Settings in a file a person can read**: TOML, INI or JSON, with every option written out and commented. Don't hide settings in the registry.
 - **Logs in a known place**, kept for the last few runs, so players can send them when something breaks.
 - **Controllers through SDL**, with buttons that can be remapped and a sensible default for Xbox, PlayStation and Switch pads.
